@@ -1,19 +1,25 @@
 import React, { useState } from 'react';
 import type { Ledger, AccountTransaction, AccountGroup } from '../types';
-import { Book, Receipt, BarChart2, ShieldCheck, Search, CalendarDays, ArrowLeft, ArrowRight, Wallet, Landmark, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Book, Receipt, BarChart2, ShieldCheck, Search, CalendarDays, ArrowLeft, ArrowRight, Wallet, Landmark, CheckCircle2, AlertTriangle, Plus, Edit, Trash2, Lock, X } from 'lucide-react';
 
 interface AccountingTabProps {
   ledgers: Ledger[];
   accountGroups: AccountGroup[];
   transactions: AccountTransaction[];
   currencySymbol?: string;
+  addLedger: (ledger: any) => Promise<void>;
+  updateLedger: (id: number, ledger: any) => Promise<void>;
+  deleteLedger: (id: number) => Promise<void>;
 }
 
 export const AccountingTab: React.FC<AccountingTabProps> = ({
   ledgers,
   accountGroups,
   transactions,
-  currencySymbol = '$'
+  currencySymbol = '$',
+  addLedger,
+  updateLedger,
+  deleteLedger
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'daybook' | 'ledgers' | 'journal' | 'trial'>('daybook');
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,6 +40,72 @@ export const AccountingTab: React.FC<AccountingTabProps> = ({
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   });
+
+  const [isLedgerModalOpen, setIsLedgerModalOpen] = useState(false);
+  const [editLedgerId, setEditLedgerId] = useState<number | null>(null);
+  const [ledgerError, setLedgerError] = useState<string | null>(null);
+  const [ledgerForm, setLedgerForm] = useState({
+    LedgerName: '',
+    GroupId: 0,
+    OpeningBalance: 0.00,
+    BalanceType: 'Dr' as 'Dr' | 'Cr'
+  });
+
+  const handleEditLedger = (ledger: Ledger) => {
+    setEditLedgerId(ledger.LedgerId);
+    setLedgerForm({
+      LedgerName: ledger.LedgerName,
+      GroupId: ledger.GroupId,
+      OpeningBalance: ledger.OpeningBalance,
+      BalanceType: ledger.BalanceType as 'Dr' | 'Cr'
+    });
+    setLedgerError(null);
+    setIsLedgerModalOpen(true);
+  };
+
+  const handleCreateLedgerClick = () => {
+    setEditLedgerId(null);
+    setLedgerForm({
+      LedgerName: '',
+      GroupId: 0,
+      OpeningBalance: 0.00,
+      BalanceType: 'Dr'
+    });
+    setLedgerError(null);
+    setIsLedgerModalOpen(true);
+  };
+
+  const handleLedgerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (ledgerForm.GroupId === 0) {
+      setLedgerError('Please select a valid Account Group.');
+      return;
+    }
+    try {
+      if (editLedgerId) {
+        await updateLedger(editLedgerId, {
+          LedgerId: editLedgerId,
+          ...ledgerForm
+        });
+      } else {
+        await addLedger(ledgerForm);
+      }
+      setIsLedgerModalOpen(false);
+      setEditLedgerId(null);
+    } catch (err: any) {
+      setLedgerError(err.message || 'An error occurred while saving the ledger.');
+    }
+  };
+
+  const handleDeleteLedgerClick = async (ledger: Ledger) => {
+    if (window.confirm(`Are you sure you want to delete the ledger "${ledger.LedgerName}"?`)) {
+      try {
+        await deleteLedger(ledger.LedgerId);
+      } catch (err: any) {
+        alert(err.message || 'Failed to delete ledger.');
+      }
+    }
+  };
 
   const getGroupName = (groupId: number) => {
     const group = accountGroups.find(g => g.GroupId === groupId);
@@ -493,7 +565,16 @@ export const AccountingTab: React.FC<AccountingTabProps> = ({
       {activeSubTab === 'ledgers' && (
         <div className="glass-panel fade-in" style={{ padding: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
-            <h3 style={{ fontSize: '1.2rem' }}>General Ledger Accounts</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <h3 style={{ fontSize: '1.2rem', margin: 0 }}>General Ledger Accounts</h3>
+              <button 
+                className="btn btn-primary" 
+                style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                onClick={handleCreateLedgerClick}
+              >
+                <Plus size={14} /> Add Ledger
+              </button>
+            </div>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
               <div style={{ position: 'relative', width: '220px' }}>
                 <Search size={16} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-secondary)' }} />
@@ -540,25 +621,75 @@ export const AccountingTab: React.FC<AccountingTabProps> = ({
                   <th>Current Bal</th>
                   <th>Type</th>
                   <th>Reference Info</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredLedgers.map(l => (
-                  <tr key={l.LedgerId}>
-                    <td style={{ fontWeight: 600 }}>{l.LedgerName}</td>
-                    <td>{getGroupName(l.GroupId)}</td>
-                    <td>{currencySymbol}{l.OpeningBalance.toFixed(2)}</td>
-                    <td style={{ fontWeight: 700, color: 'var(--accent-teal)' }}>{currencySymbol}{l.CurrentBalance.toFixed(2)}</td>
-                    <td>
-                      <span className={l.BalanceType === 'Dr' ? 'badge badge-scheduled' : 'badge badge-completed'} style={{ fontSize: '0.65rem' }}>
-                        {l.BalanceType}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      {l.ReferenceType ? `${l.ReferenceType} Bind (ID: #${l.ReferenceId})` : 'System General'}
-                    </td>
-                  </tr>
-                ))}
+                {filteredLedgers.map(l => {
+                  const isGeneral = !l.ReferenceType || l.ReferenceType === 'General';
+                  return (
+                    <tr key={l.LedgerId}>
+                      <td style={{ fontWeight: 600 }}>{l.LedgerName}</td>
+                      <td>{getGroupName(l.GroupId)}</td>
+                      <td>{currencySymbol}{l.OpeningBalance.toFixed(2)}</td>
+                      <td style={{ fontWeight: 700, color: 'var(--accent-teal)' }}>{currencySymbol}{l.CurrentBalance.toFixed(2)}</td>
+                      <td>
+                        <span className={l.BalanceType === 'Dr' ? 'badge badge-scheduled' : 'badge badge-completed'} style={{ fontSize: '0.65rem' }}>
+                          {l.BalanceType}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        {l.ReferenceType ? `${l.ReferenceType} Bind (ID: #${l.ReferenceId})` : 'System General'}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        {isGeneral ? (
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                            <button
+                              className="btn btn-secondary"
+                              style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                              onClick={() => handleEditLedger(l)}
+                            >
+                              <Edit size={12} /> Edit
+                            </button>
+                            <button
+                              className="btn"
+                              style={{ 
+                                padding: '4px 8px', 
+                                fontSize: '0.75rem', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '4px',
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                color: '#f87171',
+                                border: '1px solid rgba(239, 68, 68, 0.2)'
+                              }}
+                              onClick={() => handleDeleteLedgerClick(l)}
+                            >
+                              <Trash2 size={12} /> Delete
+                            </button>
+                          </div>
+                        ) : (
+                          <span 
+                            className="badge" 
+                            style={{ 
+                              fontSize: '0.65rem', 
+                              display: 'inline-flex', 
+                              alignItems: 'center', 
+                              gap: '4px', 
+                              background: 'rgba(255, 255, 255, 0.05)',
+                              color: 'var(--text-secondary)',
+                              border: '1px solid var(--border-color)',
+                              padding: '2px 8px',
+                              borderRadius: '4px'
+                            }}
+                          >
+                            <Lock size={10} /> Locked
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -719,6 +850,113 @@ export const AccountingTab: React.FC<AccountingTabProps> = ({
             )}
           </div>
 
+        </div>
+      )}
+
+      {/* Add / Edit Ledger Modal */}
+      {isLedgerModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content glass-panel" style={{ maxWidth: '500px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '1.4rem', margin: 0 }}>
+                {editLedgerId ? 'Modify Ledger Details' : 'Create New Account Ledger'}
+              </h2>
+              <button 
+                onClick={() => {
+                  setEditLedgerId(null);
+                  setIsLedgerModalOpen(false);
+                }}
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {ledgerError && (
+              <div style={{ 
+                background: 'rgba(239, 68, 68, 0.08)', 
+                border: '1px solid rgba(239, 68, 68, 0.2)', 
+                color: '#f87171', 
+                padding: '10px 14px', 
+                borderRadius: '6px', 
+                fontSize: '0.85rem', 
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <AlertTriangle size={16} />
+                <span>{ledgerError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleLedgerSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label className="label-text">Ledger Account Name *</label>
+                <input 
+                  type="text" 
+                  className="input-field" 
+                  required
+                  placeholder="e.g. Office Rent Expense"
+                  value={ledgerForm.LedgerName}
+                  onChange={e => setLedgerForm(prev => ({ ...prev, LedgerName: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label className="label-text">Account Group *</label>
+                <select 
+                  className="input-field" 
+                  required
+                  value={ledgerForm.GroupId || ''}
+                  onChange={e => setLedgerForm(prev => ({ ...prev, GroupId: parseInt(e.target.value) || 0 }))}
+                >
+                  <option value="">Select Account Group...</option>
+                  {accountGroups.map(g => (
+                    <option key={g.GroupId} value={g.GroupId}>{g.GroupName}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid-2">
+                <div>
+                  <label className="label-text">Opening Balance *</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    className="input-field" 
+                    required
+                    placeholder="e.g. 0.00"
+                    value={ledgerForm.OpeningBalance}
+                    onChange={e => setLedgerForm(prev => ({ ...prev, OpeningBalance: parseFloat(e.target.value) || 0 }))}
+                  />
+                </div>
+                <div>
+                  <label className="label-text">Balance Type *</label>
+                  <select 
+                    className="input-field" 
+                    required
+                    value={ledgerForm.BalanceType}
+                    onChange={e => setLedgerForm(prev => ({ ...prev, BalanceType: e.target.value as 'Dr' | 'Cr' }))}
+                  >
+                    <option value="Dr">Debit (Dr)</option>
+                    <option value="Cr">Credit (Cr)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => {
+                  setEditLedgerId(null);
+                  setIsLedgerModalOpen(false);
+                }}>Cancel</button>
+                <button type="submit" className="btn btn-primary">
+                  {editLedgerId ? 'Save Changes' : 'Create Ledger'}
+                </button>
+              </div>
+
+            </form>
+          </div>
         </div>
       )}
 

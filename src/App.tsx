@@ -994,6 +994,58 @@ function App() {
     }
   };
 
+  const addLedger = async (ledger: any) => {
+    try {
+      const response = await fetch(`${API_BASE}/accounting/ledgers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ledger)
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || 'Failed to add ledger.');
+      }
+      await loadAllData();
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  const updateLedger = async (id: number, ledger: any) => {
+    try {
+      const response = await fetch(`${API_BASE}/accounting/ledgers/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ledger)
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || 'Failed to update ledger.');
+      }
+      await loadAllData();
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  const deleteLedger = async (id: number) => {
+    try {
+      const response = await fetch(`${API_BASE}/accounting/ledgers/${id}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || 'Failed to delete ledger.');
+      }
+      await loadAllData();
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
   // 6. Invoicing Action (Double entry accounting side-effect)
   const addInvoice = async (
     invoice: Omit<Invoice, 'InvoiceId' | 'InvoiceNumber' | 'InvoiceDate' | 'SubTotal' | 'TotalAmount' | 'PaidAmount' | 'Status'>,
@@ -1854,6 +1906,7 @@ function App() {
               updateAppointmentStatus={updateAppointmentStatus}
               openBookingModal={() => setIsBookingModalOpen(true)}
               openPatientModal={() => setIsPatientModalOpen(true)}
+              currentUser={currentUser}
             />
           )}
 
@@ -1965,6 +2018,9 @@ function App() {
               accountGroups={accountGroups}
               transactions={accountTransactions}
               currencySymbol={currencySymbol}
+              addLedger={addLedger}
+              updateLedger={updateLedger}
+              deleteLedger={deleteLedger}
             />
           )}
 

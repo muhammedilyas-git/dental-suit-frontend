@@ -24,6 +24,7 @@ interface DashboardProps {
   updateAppointmentStatus: (id: number, status: Appointment['Status']) => void;
   openBookingModal: () => void;
   openPatientModal: () => void;
+  currentUser?: User | null;
 }
 
 export const Dashboard: React.FC<DashboardProps & { currencySymbol?: string }> = ({
@@ -37,6 +38,7 @@ export const Dashboard: React.FC<DashboardProps & { currencySymbol?: string }> =
   updateAppointmentStatus,
   openBookingModal,
   openPatientModal,
+  currentUser,
   currencySymbol = '$'
 }) => {
   // Helper: Find doctor details
@@ -95,16 +97,16 @@ export const Dashboard: React.FC<DashboardProps & { currencySymbol?: string }> =
         gap: '16px'
       }}>
         <div>
-          <h2 style={{ fontSize: '1.75rem', marginBottom: '4px' }}>Welcome back, Dr. Sarah Connor</h2>
+          <h2 style={{ fontSize: '1.75rem', marginBottom: '4px' }}>Welcome back, {currentUser ? currentUser.FullName : 'Dr. Sarah Connor'}</h2>
           <p style={{ color: 'var(--text-secondary)' }}>
             Dental Suite is active. Here is a summary of the clinic's activity for today, {new Date().toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' })}.
           </p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="btn btn-primary" onClick={openBookingModal}>
+          <button className="btn btn-primary" onClick={() => { setTab('appointments'); openBookingModal(); }}>
             <Plus size={16} /> Book Appointment
           </button>
-          <button className="btn btn-secondary" onClick={openPatientModal}>
+          <button className="btn btn-secondary" onClick={() => { setTab('patients'); openPatientModal(); }}>
             <Plus size={16} /> New Patient
           </button>
         </div>
