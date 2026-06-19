@@ -843,4 +843,105 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* Interactive Invoice Designer Enhancements */
+.designer-canvas-section {
+  position: relative;
+  border: 1.5px dashed var(--border-color);
+  border-radius: 8px;
+  background-color: rgba(0, 0, 0, 0.05);
+  background-size: 12px 12px;
+  background-image: radial-gradient(circle, rgba(139, 92, 246, 0.06) 1px, transparent 1px);
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.designer-canvas-section:hover {
+  border-color: rgba(139, 92, 246, 0.3);
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.designer-canvas-label {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  pointer-events: none;
+  background: var(--bg-app);
+  padding: 1px 4px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  z-index: 10;
+}
+
+.designer-field-item {
+  position: absolute;
+  cursor: move;
+  user-select: none;
+  border: 1px transparent dashed;
+  padding: 2px 4px;
+  border-radius: 4px;
+  display: inline-block;
+  white-space: pre-wrap;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.designer-field-item:hover {
+  border-color: var(--accent-purple);
+  background-color: rgba(139, 92, 246, 0.08);
+  z-index: 50;
+}
+
+.designer-field-item.selected {
+  border-color: var(--accent-teal);
+  background-color: rgba(20, 184, 166, 0.12);
+  box-shadow: 0 0 0 1.5px var(--accent-teal);
+  z-index: 100;
+}
+
+.designer-divider-line {
+  border-top: 2px dashed;
+  width: 100%;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Print Invoice Slip Styles */
+#printable-invoice-slip {
+  box-sizing: border-box;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+}
+
 

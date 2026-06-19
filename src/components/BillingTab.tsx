@@ -6,6 +6,25 @@ import clinicLogo from '../assets/clinic_logo.png';
 import dentalXray from '../assets/dental_xray.png';
 import doctorSign from '../assets/doctor_sign.png';
 
+interface InvoiceCustomField {
+  id: string;
+  type: 'db_field' | 'custom_text' | 'picture' | 'divider' | 'table' | 'calculations' | 'payment_history';
+  value: string; // The db field key (e.g. 'patient.FullName'), custom text, or image type/URL
+  label: string; // Display label
+  section: 'header' | 'details_header' | 'details_footer' | 'footer';
+  x: number; // percentage left
+  y: number; // percentage top
+  fontSize: number;
+  color: string;
+  fontFamily: 'monospace' | 'sans-serif' | 'serif' | 'inherit';
+  fontWeight: 'normal' | 'bold';
+  fontStyle: 'normal' | 'italic';
+  textDecoration: 'none' | 'underline';
+  textAlign: 'left' | 'center' | 'right';
+  width?: number; // width in percentage
+  height?: number; // height in px (useful for picture / divider)
+}
+
 interface InvoiceTemplateConfig {
   clinicName: string;
   clinicAddress: string;
@@ -20,7 +39,307 @@ interface InvoiceTemplateConfig {
   headerNote: string;
   footerTerms: string;
   showDoctorName: boolean;
+  customFields?: InvoiceCustomField[];
 }
+
+const DEFAULT_CUSTOM_FIELDS: InvoiceCustomField[] = [
+  // Header Section
+  {
+    id: 'clinic-logo',
+    type: 'picture',
+    value: 'preset',
+    label: 'Clinic Logo',
+    section: 'header',
+    x: 46,
+    y: 5,
+    width: 8,
+    height: 54,
+    fontSize: 12,
+    color: '#1f2937',
+    fontFamily: 'sans-serif',
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    textDecoration: 'none',
+    textAlign: 'center'
+  },
+  {
+    id: 'clinic-name',
+    type: 'custom_text',
+    value: 'DENTAL SUITE CLINICS',
+    label: 'Clinic Name',
+    section: 'header',
+    x: 10,
+    y: 42,
+    fontSize: 20,
+    color: '#8b5cf6',
+    fontFamily: 'sans-serif',
+    fontWeight: 'bold',
+    fontStyle: 'normal',
+    textDecoration: 'none',
+    textAlign: 'center',
+    width: 80
+  },
+  {
+    id: 'clinic-address',
+    type: 'custom_text',
+    value: '100 Dental Science Way, Medical District, NY',
+    label: 'Clinic Address',
+    section: 'header',
+    x: 10,
+    y: 68,
+    fontSize: 11,
+    color: '#64748b',
+    fontFamily: 'sans-serif',
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    textDecoration: 'none',
+    textAlign: 'center',
+    width: 80
+  },
+  {
+    id: 'clinic-phone',
+    type: 'custom_text',
+    value: 'Tel: +1 (555) DENTIST',
+    label: 'Clinic Phone',
+    section: 'header',
+    x: 10,
+    y: 82,
+    fontSize: 11,
+    color: '#64748b',
+    fontFamily: 'sans-serif',
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    textDecoration: 'none',
+    textAlign: 'center',
+    width: 80
+  },
+  {
+    id: 'header-divider',
+    type: 'divider',
+    value: '#cbd5e1',
+    label: 'Header Separator Line',
+    section: 'header',
+    x: 2,
+    y: 95,
+    fontSize: 12,
+    color: '#cbd5e1',
+    fontFamily: 'sans-serif',
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    textDecoration: 'none',
+    textAlign: 'center',
+    width: 96,
+    height: 2
+  },
+  
+  // Details Header Section
+  {
+    id: 'label-billto',
+    type: 'custom_text',
+    value: 'BILL TO:',
+    label: 'Bill To Label',
+    section: 'details_header',
+    x: 4,
+    y: 10,
+    fontSize: 11,
+    color: '#64748b',
+    fontFamily: 'sans-serif',
+    fontWeight: 'bold',
+    fontStyle: 'normal',
+    textDecoration: 'none',
+    textAlign: 'left'
+  },
+  {
+    id: 'patient-name',
+    type: 'db_field',
+    value: 'patient.FullName',
+    label: 'Patient Full Name',
+    section: 'details_header',
+    x: 4,
+    y: 28,
+    fontSize: 13,
+    color: '#1e293b',
+    fontFamily: 'sans-serif',
+    fontWeight: 'bold',
+    fontStyle: 'normal',
+    textDecoration: 'none',
+    textAlign: 'left'
+  },
+  {
+    id: 'patient-mobile',
+    type: 'db_field',
+    value: 'patient.Mobile',
+    label: 'Patient Mobile',
+    section: 'details_header',
+    x: 4,
+    y: 46,
+    fontSize: 11,
+    color: '#64748b',
+    fontFamily: 'sans-serif',
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    textDecoration: 'none',
+    textAlign: 'left'
+  },
+  {
+    id: 'doctor-name',
+    type: 'db_field',
+    value: 'doctor.FullName',
+    label: 'Attending Doctor Name',
+    section: 'details_header',
+    x: 4,
+    y: 64,
+    fontSize: 11,
+    color: '#475569',
+    fontFamily: 'sans-serif',
+    fontWeight: 'normal',
+    fontStyle: 'italic',
+    textDecoration: 'none',
+    textAlign: 'left'
+  },
+  {
+    id: 'label-invno',
+    type: 'custom_text',
+    value: 'INVOICE NO:',
+    label: 'Invoice No Label',
+    section: 'details_header',
+    x: 66,
+    y: 10,
+    fontSize: 11,
+    color: '#64748b',
+    fontFamily: 'sans-serif',
+    fontWeight: 'bold',
+    fontStyle: 'normal',
+    textDecoration: 'none',
+    textAlign: 'right',
+    width: 30
+  },
+  {
+    id: 'invoice-number',
+    type: 'db_field',
+    value: 'invoice.InvoiceNumber',
+    label: 'Invoice Number',
+    section: 'details_header',
+    x: 66,
+    y: 28,
+    fontSize: 13,
+    color: '#0d9488',
+    fontFamily: 'sans-serif',
+    fontWeight: 'bold',
+    fontStyle: 'normal',
+    textDecoration: 'none',
+    textAlign: 'right',
+    width: 30
+  },
+  {
+    id: 'invoice-date',
+    type: 'db_field',
+    value: 'invoice.InvoiceDate',
+    label: 'Invoice Date',
+    section: 'details_header',
+    x: 66,
+    y: 46,
+    fontSize: 11,
+    color: '#64748b',
+    fontFamily: 'sans-serif',
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    textDecoration: 'none',
+    textAlign: 'right',
+    width: 30
+  },
+  
+  // Details Footer Section
+  {
+    id: 'invoice-calculations',
+    type: 'calculations',
+    value: '',
+    label: 'Calculations Summary',
+    section: 'details_footer',
+    x: 58,
+    y: 10,
+    fontSize: 12,
+    color: '#1f2937',
+    fontFamily: 'sans-serif',
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    textDecoration: 'none',
+    textAlign: 'right',
+    width: 38
+  },
+  {
+    id: 'payment-history',
+    type: 'payment_history',
+    value: '',
+    label: 'Payment History Log',
+    section: 'details_footer',
+    x: 4,
+    y: 10,
+    fontSize: 11,
+    color: '#64748b',
+    fontFamily: 'sans-serif',
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    textDecoration: 'none',
+    textAlign: 'left',
+    width: 48
+  },
+  {
+    id: 'xray-attachment',
+    type: 'picture',
+    value: 'xray',
+    label: 'X-Ray Preset Attachment',
+    section: 'details_footer',
+    x: 4,
+    y: 55,
+    width: 35,
+    height: 80,
+    fontSize: 12,
+    color: '#1f2937',
+    fontFamily: 'sans-serif',
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    textDecoration: 'none',
+    textAlign: 'center'
+  },
+  {
+    id: 'signature-attachment',
+    type: 'picture',
+    value: 'signature',
+    label: 'Doctor Signature Stamp',
+    section: 'details_footer',
+    x: 65,
+    y: 65,
+    width: 30,
+    height: 50,
+    fontSize: 12,
+    color: '#1f2937',
+    fontFamily: 'sans-serif',
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    textDecoration: 'none',
+    textAlign: 'center'
+  },
+  
+  // Footer Section
+  {
+    id: 'footer-terms',
+    type: 'custom_text',
+    value: '~ Thank you for your visit. Keep smiling! ~',
+    label: 'Footer Terms / Note',
+    section: 'footer',
+    x: 10,
+    y: 35,
+    fontSize: 11,
+    color: '#64748b',
+    fontFamily: 'sans-serif',
+    fontWeight: 'normal',
+    fontStyle: 'italic',
+    textDecoration: 'none',
+    textAlign: 'center',
+    width: 80
+  }
+];
 
 const DEFAULT_TEMPLATE_CONFIG: InvoiceTemplateConfig = {
   clinicName: 'DENTAL SUITE CLINICS',
@@ -35,7 +354,8 @@ const DEFAULT_TEMPLATE_CONFIG: InvoiceTemplateConfig = {
   fontFamily: 'monospace',
   headerNote: '',
   footerTerms: '~ Thank you for your visit. Keep smiling! ~',
-  showDoctorName: true
+  showDoctorName: true,
+  customFields: DEFAULT_CUSTOM_FIELDS
 };
 
 const API_BASE = window.location.port === '5173' || window.location.port === '4173' || window.location.port === '5166'
@@ -115,8 +435,15 @@ export const BillingTab: React.FC<BillingTabProps> = ({
         if (data && data.InvoiceTemplateConfig) {
           try {
             const config = JSON.parse(data.InvoiceTemplateConfig);
-            setTemplateConfig(config);
-            setDesignerForm(config);
+            const parsedConfig = {
+              ...DEFAULT_TEMPLATE_CONFIG,
+              ...config,
+              customFields: config.customFields && config.customFields.length > 0 
+                ? config.customFields 
+                : DEFAULT_CUSTOM_FIELDS
+            };
+            setTemplateConfig(parsedConfig);
+            setDesignerForm(parsedConfig);
           } catch (e) {
             console.error('Failed to parse invoice template config:', e);
           }
@@ -134,7 +461,14 @@ export const BillingTab: React.FC<BillingTabProps> = ({
     const saved = localStorage.getItem('invoiceTemplateConfig');
     if (saved) {
       try {
-        return { ...DEFAULT_TEMPLATE_CONFIG, ...JSON.parse(saved) };
+        const parsed = JSON.parse(saved);
+        return {
+          ...DEFAULT_TEMPLATE_CONFIG,
+          ...parsed,
+          customFields: parsed.customFields && parsed.customFields.length > 0 
+            ? parsed.customFields 
+            : DEFAULT_CUSTOM_FIELDS
+        };
       } catch (e) {
         return DEFAULT_TEMPLATE_CONFIG;
       }
@@ -144,6 +478,506 @@ export const BillingTab: React.FC<BillingTabProps> = ({
 
   // Designer temporary form state
   const [designerForm, setDesignerForm] = useState<InvoiceTemplateConfig>({ ...templateConfig });
+
+  // Custom Fields Interactive States
+  const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [addFieldType, setAddFieldType] = useState<'db_field' | 'custom_text' | 'picture' | 'divider'>('custom_text');
+  const [addFieldDbKey, setAddFieldDbKey] = useState<string>('patient.FullName');
+  const [addFieldText, setAddFieldText] = useState<string>('New Custom Text');
+  const [addFieldPicValue, setAddFieldPicValue] = useState<string>('preset');
+  const [addFieldPicUrl, setAddFieldPicUrl] = useState<string>('');
+  const [addFieldSection, setAddFieldSection] = useState<'header' | 'details_header' | 'details_footer' | 'footer'>('header');
+
+  const resolveDbField = (fieldKey: string, invoice: Invoice | null): string => {
+    if (!invoice) {
+      switch (fieldKey) {
+        case 'patient.FullName': return 'John Doe (Patient)';
+        case 'patient.Mobile': return '+1 (555) 019-2834';
+        case 'patient.Email': return 'johndoe@example.com';
+        case 'patient.Address': return '123 Main St, Dental Hills, NY';
+        case 'patient.InsuranceProvider': return 'Premium Dental Ins.';
+        case 'patient.InsurancePolicyNumber': return 'POL-998877';
+        case 'doctor.FullName': return 'Dr. Sarah Connor';
+        case 'doctor.Specialization': return 'Orthodontist';
+        case 'doctor.Qualification': return 'DDS, MS';
+        case 'invoice.InvoiceNumber': return 'INV-2026-0042';
+        case 'invoice.InvoiceDate': return '2026-06-19';
+        case 'invoice.Status': return 'PAID';
+        case 'invoice.SubTotal': return `${currencySymbol}170.00`;
+        case 'invoice.TaxAmount': return `${currencySymbol}8.50`;
+        case 'invoice.Discount': return `${currencySymbol}10.00`;
+        case 'invoice.TotalAmount': return `${currencySymbol}168.50`;
+        case 'invoice.PaidAmount': return `${currencySymbol}168.50`;
+        case 'invoice.BalanceDue': return `${currencySymbol}0.00`;
+        case 'invoice.Notes': return 'Keep smiling!';
+        case 'consultation.Diagnosis': return 'Mild dental gingivitis';
+        case 'consultation.Symptoms': return 'Sensitivity to cold';
+        case 'consultation.TreatmentAdvice': return 'Rinse twice daily';
+        case 'consultation.FollowUpDate': return '2026-12-19';
+        default: return `[${fieldKey}]`;
+      }
+    }
+
+    const patient = patients.find(p => p.PatientId === invoice.PatientId);
+    const doctor = doctors.find(d => d.DoctorId === invoice.DoctorId);
+    const docUser = doctor ? users.find(u => u.UserId === doctor.UserId) : null;
+    const consultation = invoice.ConsultationId ? consultations.find(c => c.ConsultationId === invoice.ConsultationId) : null;
+
+    switch (fieldKey) {
+      case 'patient.FullName':
+        return patient ? `${patient.FirstName} ${patient.LastName}` : `Patient #${invoice.PatientId}`;
+      case 'patient.Mobile':
+        return patient?.Mobile || 'N/A';
+      case 'patient.Email':
+        return patient?.Email || 'N/A';
+      case 'patient.Address':
+        return patient?.Address || 'N/A';
+      case 'patient.InsuranceProvider':
+        return patient?.InsuranceProvider || 'N/A';
+      case 'patient.InsurancePolicyNumber':
+        return patient?.InsurancePolicyNumber || 'N/A';
+      case 'doctor.FullName':
+        return docUser ? docUser.FullName : `Dr. #${invoice.DoctorId}`;
+      case 'doctor.Specialization':
+        return doctor?.Specialization || 'N/A';
+      case 'doctor.Qualification':
+        return doctor?.Qualification || 'N/A';
+      case 'invoice.InvoiceNumber':
+        return invoice.InvoiceNumber;
+      case 'invoice.InvoiceDate':
+        return new Date(invoice.InvoiceDate).toLocaleDateString();
+      case 'invoice.Status':
+        return invoice.Status;
+      case 'invoice.SubTotal':
+        return `${currencySymbol}${invoice.SubTotal.toFixed(2)}`;
+      case 'invoice.TaxAmount':
+        return `${currencySymbol}${invoice.TaxAmount.toFixed(2)}`;
+      case 'invoice.Discount':
+        return `${currencySymbol}${invoice.Discount.toFixed(2)}`;
+      case 'invoice.TotalAmount':
+        return `${currencySymbol}${invoice.TotalAmount.toFixed(2)}`;
+      case 'invoice.PaidAmount':
+        return `${currencySymbol}${invoice.PaidAmount.toFixed(2)}`;
+      case 'invoice.BalanceDue':
+        return `${currencySymbol}${(invoice.TotalAmount - invoice.PaidAmount).toFixed(2)}`;
+      case 'invoice.Notes':
+        return invoice.Notes || 'N/A';
+      case 'consultation.Diagnosis':
+        return consultation?.Diagnosis || 'N/A';
+      case 'consultation.Symptoms':
+        return consultation?.Symptoms || 'N/A';
+      case 'consultation.TreatmentAdvice':
+        return consultation?.TreatmentAdvice || 'N/A';
+      case 'consultation.FollowUpDate':
+        return consultation?.FollowUpDate ? new Date(consultation.FollowUpDate).toLocaleDateString() : 'N/A';
+      default:
+        return '';
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    e.dataTransfer.setData('text/plain', id);
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+    setSelectedFieldId(id);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>, section: InvoiceCustomField['section']) => {
+    e.preventDefault();
+    const itemId = e.dataTransfer.getData('text/plain');
+    if (!itemId) return;
+
+    const canvasRect = e.currentTarget.getBoundingClientRect();
+    
+    // Compute dropped position inside container in percentage
+    const rawX = ((e.clientX - canvasRect.left - dragOffset.x) / canvasRect.width) * 100;
+    const rawY = ((e.clientY - canvasRect.top - dragOffset.y) / canvasRect.height) * 100;
+    
+    // Snap to 1% grid and clamp to container
+    const snappedX = Math.round(rawX);
+    const snappedY = Math.round(rawY);
+    const x = Math.max(0, Math.min(95, snappedX));
+    const y = Math.max(0, Math.min(95, snappedY));
+
+    // Update in designerForm
+    setDesignerForm(prev => {
+      const fields = prev.customFields || DEFAULT_CUSTOM_FIELDS;
+      const updatedFields = fields.map(field => {
+        if (field.id === itemId) {
+          return { ...field, section, x, y };
+        }
+        return field;
+      });
+      return { ...prev, customFields: updatedFields };
+    });
+  };
+
+  const handleAddField = () => {
+    let value = '';
+    let label = '';
+    let width = 30;
+    let height = 30;
+
+    if (addFieldType === 'db_field') {
+      value = addFieldDbKey;
+      label = `DB: ${addFieldDbKey.split('.').pop()}`;
+    } else if (addFieldType === 'custom_text') {
+      value = addFieldText;
+      label = `Text: ${addFieldText.substring(0, 10)}`;
+      width = 50;
+    } else if (addFieldType === 'picture') {
+      value = addFieldPicValue === 'custom' ? addFieldPicUrl || 'https://via.placeholder.com/150' : addFieldPicValue;
+      label = `Image: ${addFieldPicValue}`;
+      width = 25;
+      height = 60;
+    } else if (addFieldType === 'divider') {
+      value = '#cbd5e1';
+      label = 'Horizontal Divider';
+      width = 96;
+      height = 2;
+    }
+
+    const newField: InvoiceCustomField = {
+      id: `field-${Date.now()}`,
+      type: addFieldType,
+      value,
+      label,
+      section: addFieldSection,
+      x: 10,
+      y: 10,
+      fontSize: 12,
+      color: designerForm.primaryColor || '#1f2937',
+      fontFamily: 'sans-serif',
+      fontWeight: 'normal',
+      fontStyle: 'normal',
+      textDecoration: 'none',
+      textAlign: 'left',
+      width,
+      height
+    };
+
+    setDesignerForm(prev => ({
+      ...prev,
+      customFields: [...(prev.customFields || DEFAULT_CUSTOM_FIELDS), newField]
+    }));
+
+    setSelectedFieldId(newField.id);
+  };
+
+  const handleUpdateFieldProperty = (id: string, property: keyof InvoiceCustomField, val: any) => {
+    setDesignerForm(prev => {
+      const fields = prev.customFields || DEFAULT_CUSTOM_FIELDS;
+      return {
+        ...prev,
+        customFields: fields.map(f => f.id === id ? { ...f, [property]: val } : f)
+      };
+    });
+  };
+
+  const handleRemoveField = (id: string) => {
+    setDesignerForm(prev => {
+      const fields = prev.customFields || DEFAULT_CUSTOM_FIELDS;
+      return {
+        ...prev,
+        customFields: fields.filter(f => f.id !== id)
+      };
+    });
+    setSelectedFieldId(null);
+  };
+
+  const renderTableContent = (invoice: Invoice | null) => {
+    const itemsList = invoice 
+      ? invoiceItems.filter(item => item.InvoiceId === invoice.InvoiceId)
+      : [
+          { InvoiceItemId: 1, Description: 'Composite Resin Filling (Tooth #14)', ItemType: 'Treatment', Quantity: 1, Rate: 120.00, Amount: 120.00 },
+          { InvoiceItemId: 2, Description: 'Clinical Consultation & X-Ray', ItemType: 'Consultation', Quantity: 1, Rate: 50.00, Amount: 50.00 }
+        ];
+
+    return (
+      <table style={{ width: '100%', fontSize: 'inherit', borderCollapse: 'collapse', marginTop: '10px', marginBottom: '10px' }}>
+        <thead>
+          <tr style={{ borderBottom: '2px solid var(--border-color)', fontWeight: 700 }}>
+            <th style={{ textAlign: 'left', padding: '6px 4px' }}>Description</th>
+            <th style={{ textAlign: 'right', padding: '6px 4px', width: '10%' }}>Qty</th>
+            <th style={{ textAlign: 'right', padding: '6px 4px', width: '20%' }}>Rate</th>
+            <th style={{ textAlign: 'right', padding: '6px 4px', width: '20%' }}>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {itemsList.map(item => (
+            <tr key={item.InvoiceItemId} style={{ borderBottom: '1px solid var(--border-color)' }}>
+              <td style={{ padding: '6px 4px' }}>{item.Description} ({item.ItemType})</td>
+              <td style={{ padding: '6px 4px', textAlign: 'right' }}>{item.Quantity}</td>
+              <td style={{ padding: '6px 4px', textAlign: 'right' }}>{currencySymbol}{item.Rate.toFixed(2)}</td>
+              <td style={{ padding: '6px 4px', textAlign: 'right' }}>{currencySymbol}{item.Amount.toFixed(2)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  };
+
+  const renderCalculationsContent = (invoice: Invoice | null) => {
+    const subtotal = invoice ? invoice.SubTotal : 170.00;
+    const discount = invoice ? invoice.Discount : 10.00;
+    const tax = invoice ? invoice.TaxAmount : 8.50;
+    const total = invoice ? invoice.TotalAmount : 168.50;
+    const paid = invoice ? invoice.PaidAmount : 168.50;
+    const balance = invoice ? (invoice.TotalAmount - invoice.PaidAmount) : 0.00;
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: 'inherit', width: '100%' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span>Subtotal:</span>
+          <span>{currencySymbol}{subtotal.toFixed(2)}</span>
+        </div>
+        {discount > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#f87171' }}>
+            <span>Discount:</span>
+            <span>-{currencySymbol}{discount.toFixed(2)}</span>
+          </div>
+        )}
+        {tax > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Tax (5%):</span>
+            <span>+{currencySymbol}{tax.toFixed(2)}</span>
+          </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, borderTop: '1px solid var(--border-color)', paddingTop: '4px', marginTop: '2px' }}>
+          <span>Total:</span>
+          <span>{currencySymbol}{total.toFixed(2)}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--accent-teal)', fontWeight: 600 }}>
+          <span>Paid:</span>
+          <span>{currencySymbol}{paid.toFixed(2)}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, borderTop: '1.5px dashed var(--border-color)', paddingTop: '4px', color: balance > 0 ? '#f87171' : 'var(--status-completed-text)' }}>
+          <span>Balance:</span>
+          <span>{currencySymbol}{balance.toFixed(2)}</span>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPaymentHistoryContent = (invoice: Invoice | null) => {
+    const paymentLogs = invoice
+      ? payments.filter(p => p.InvoiceId === invoice.InvoiceId).sort((a, b) => b.PaymentId - a.PaymentId)
+      : [
+          { PaymentId: 1, PaymentDate: new Date().toISOString(), PaymentMode: 'Card', Amount: 168.50, TransactionReference: 'TXN-998811' }
+        ];
+
+    if (paymentLogs.length === 0) return null;
+
+    return (
+      <div style={{ fontSize: 'inherit', width: '100%' }}>
+        <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '0.9em' }}>PAYMENT LOGS:</div>
+        {paymentLogs.map(p => (
+          <div key={p.PaymentId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9em', color: 'var(--text-secondary)', marginTop: '2px' }}>
+            <span>{new Date(p.PaymentDate).toLocaleDateString()} ({p.PaymentMode})</span>
+            <span>{currencySymbol}{p.Amount.toFixed(2)}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderFieldItem = (field: InvoiceCustomField, isDesignMode: boolean, invoice: Invoice | null) => {
+    let content: React.ReactNode = '';
+    
+    if (field.type === 'db_field') {
+      content = resolveDbField(field.value, invoice);
+    } else if (field.type === 'custom_text') {
+      content = field.value;
+    } else if (field.type === 'divider') {
+      content = <div className="designer-divider-line" style={{ borderColor: field.color || '#cbd5e1', borderTopWidth: `${field.height || 2}px` }} />;
+    } else if (field.type === 'picture') {
+      let imgSrc = '';
+      if (field.value === 'preset') {
+        imgSrc = clinicLogo;
+      } else if (field.value === 'xray') {
+        imgSrc = dentalXray;
+      } else if (field.value === 'signature') {
+        imgSrc = doctorSign;
+      } else {
+        imgSrc = field.value;
+      }
+      content = (
+        <img 
+          src={imgSrc} 
+          alt={field.label} 
+          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
+        />
+      );
+    } else if (field.type === 'table') {
+      content = renderTableContent(invoice);
+    } else if (field.type === 'calculations') {
+      content = renderCalculationsContent(invoice);
+    } else if (field.type === 'payment_history') {
+      content = renderPaymentHistoryContent(invoice);
+    }
+
+    const isSelected = selectedFieldId === field.id;
+    const fontStyleFamily = field.fontFamily === 'monospace' ? 'monospace' : field.fontFamily === 'serif' ? 'Georgia, serif' : field.fontFamily === 'sans-serif' ? 'system-ui, sans-serif' : 'inherit';
+
+    const style: React.CSSProperties = {
+      left: `${field.x}%`,
+      top: `${field.y}%`,
+      fontSize: `${field.fontSize}px`,
+      color: field.color,
+      fontFamily: fontStyleFamily,
+      fontWeight: field.fontWeight,
+      fontStyle: field.fontStyle,
+      textDecoration: field.textDecoration,
+      textAlign: field.textAlign,
+      width: field.width ? `${field.width}%` : 'auto',
+      height: field.height ? `${field.height}px` : 'auto'
+    };
+
+    if (isDesignMode) {
+      return (
+        <div
+          key={field.id}
+          draggable={field.type !== 'table' && field.type !== 'calculations' && field.type !== 'payment_history'}
+          onDragStart={(e) => handleDragStart(e, field.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedFieldId(field.id);
+          }}
+          className={`designer-field-item ${isSelected ? 'selected' : ''}`}
+          style={style}
+        >
+          {content}
+        </div>
+      );
+    }
+
+    return (
+      <div
+        key={field.id}
+        style={{
+          position: 'absolute',
+          ...style,
+          boxSizing: 'border-box'
+        }}
+      >
+        {content}
+      </div>
+    );
+  };
+
+  const renderInvoiceSlipLayout = (invoice: Invoice | null, isDesignMode: boolean) => {
+    const fields = designerForm.customFields && designerForm.customFields.length > 0
+      ? (isDesignMode ? designerForm.customFields : templateConfig.customFields || DEFAULT_CUSTOM_FIELDS)
+      : (templateConfig.customFields && templateConfig.customFields.length > 0 ? templateConfig.customFields : DEFAULT_CUSTOM_FIELDS);
+
+    const headerFields = fields.filter(f => f.section === 'header');
+    const detailsHeaderFields = fields.filter(f => f.section === 'details_header');
+    const detailsFooterFields = fields.filter(f => f.section === 'details_footer');
+    const footerFields = fields.filter(f => f.section === 'footer');
+
+    const config = isDesignMode ? designerForm : templateConfig;
+    const fontStyleFamily = config.fontFamily === 'monospace' ? 'monospace' : config.fontFamily === 'serif' ? 'Georgia, serif' : 'system-ui, sans-serif';
+
+    return (
+      <div 
+        style={{
+          fontFamily: fontStyleFamily,
+          color: 'var(--text-primary)',
+          fontSize: '0.85rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0px',
+          width: '100%',
+          boxSizing: 'border-box'
+        }}
+      >
+        {/* Header Section */}
+        <div 
+          className={isDesignMode ? 'designer-canvas-section' : ''}
+          onDragOver={isDesignMode ? handleDragOver : undefined}
+          onDrop={isDesignMode ? (e) => handleDrop(e, 'header') : undefined}
+          style={{
+            position: 'relative',
+            height: '150px',
+            width: '100%',
+            borderBottom: isDesignMode ? undefined : '1px dashed var(--border-color)',
+            boxSizing: 'border-box'
+          }}
+        >
+          {isDesignMode && <div className="designer-canvas-label">Header Section (Repeats on Top)</div>}
+          {headerFields.map(f => renderFieldItem(f, isDesignMode, invoice))}
+        </div>
+
+        {/* Details Header Section */}
+        <div 
+          className={isDesignMode ? 'designer-canvas-section' : ''}
+          onDragOver={isDesignMode ? handleDragOver : undefined}
+          onDrop={isDesignMode ? (e) => handleDrop(e, 'details_header') : undefined}
+          style={{
+            position: 'relative',
+            height: '110px',
+            width: '100%',
+            marginTop: '12px',
+            boxSizing: 'border-box'
+          }}
+        >
+          {isDesignMode && <div className="designer-canvas-label">Details Header Section</div>}
+          {detailsHeaderFields.map(f => renderFieldItem(f, isDesignMode, invoice))}
+        </div>
+
+        {/* Dynamic Table (Standard flow) */}
+        <div style={{ marginTop: '12px', marginBottom: '12px', width: '100%', padding: '0 8px', boxSizing: 'border-box' }}>
+          {renderTableContent(invoice)}
+        </div>
+
+        {/* Details Footer Section */}
+        <div 
+          className={isDesignMode ? 'designer-canvas-section' : ''}
+          onDragOver={isDesignMode ? handleDragOver : undefined}
+          onDrop={isDesignMode ? (e) => handleDrop(e, 'details_footer') : undefined}
+          style={{
+            position: 'relative',
+            height: '220px',
+            width: '100%',
+            marginTop: '12px',
+            boxSizing: 'border-box'
+          }}
+        >
+          {isDesignMode && <div className="designer-canvas-label">Details Footer Section</div>}
+          {detailsFooterFields.map(f => renderFieldItem(f, isDesignMode, invoice))}
+        </div>
+
+        {/* Footer Section */}
+        <div 
+          className={isDesignMode ? 'designer-canvas-section' : ''}
+          onDragOver={isDesignMode ? handleDragOver : undefined}
+          onDrop={isDesignMode ? (e) => handleDrop(e, 'footer') : undefined}
+          style={{
+            position: 'relative',
+            height: '80px',
+            width: '100%',
+            borderTop: isDesignMode ? undefined : '1px dashed var(--border-color)',
+            marginTop: '12px',
+            boxSizing: 'border-box'
+          }}
+        >
+          {isDesignMode && <div className="designer-canvas-label">Footer Section (Repeats on Bottom)</div>}
+          {footerFields.map(f => renderFieldItem(f, isDesignMode, invoice))}
+        </div>
+      </div>
+    );
+  };
 
   const handleEditInvoice = (inv: Invoice) => {
     setEditInvoiceId(inv.InvoiceId);
@@ -380,8 +1214,248 @@ export const BillingTab: React.FC<BillingTabProps> = ({
   };
 
   const selectedInvoice = invoices.find(i => i.InvoiceId === selectedInvoiceId);
-  const selectedInvoiceItems = invoiceItems.filter(item => item.InvoiceId === selectedInvoiceId);
-  const selectedInvoicePayments = payments.filter(p => p.InvoiceId === selectedInvoiceId).sort((a, b) => b.PaymentId - a.PaymentId);
+
+  const generatePrintHtml = (invoice: Invoice) => {
+    const fields = templateConfig.customFields && templateConfig.customFields.length > 0
+      ? templateConfig.customFields
+      : DEFAULT_CUSTOM_FIELDS;
+
+    const headerFields = fields.filter(f => f.section === 'header');
+    const detailsHeaderFields = fields.filter(f => f.section === 'details_header');
+    const detailsFooterFields = fields.filter(f => f.section === 'details_footer');
+    const footerFields = fields.filter(f => f.section === 'footer');
+
+    const resolveFieldHtml = (field: InvoiceCustomField) => {
+      let content = '';
+      if (field.type === 'db_field') {
+        content = resolveDbField(field.value, invoice);
+      } else if (field.type === 'custom_text') {
+        content = field.value;
+      } else if (field.type === 'divider') {
+        content = `<div style="border-top: ${field.height || 2}px dashed ${field.color}; width: 100%; height: 0;"></div>`;
+      } else if (field.type === 'picture') {
+        let imgSrc = '';
+        if (field.value === 'preset') {
+          imgSrc = clinicLogo;
+        } else if (field.value === 'xray') {
+          imgSrc = dentalXray;
+        } else if (field.value === 'signature') {
+          imgSrc = doctorSign;
+        } else {
+          imgSrc = field.value;
+        }
+        content = `<img src="${imgSrc}" style="width: 100%; height: 100%; object-fit: contain;" />`;
+      } else if (field.type === 'calculations') {
+        const subtotal = invoice.SubTotal;
+        const discount = invoice.Discount;
+        const tax = invoice.TaxAmount;
+        const total = invoice.TotalAmount;
+        const paid = invoice.PaidAmount;
+        const balance = invoice.TotalAmount - invoice.PaidAmount;
+
+        content = `
+          <div style="display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: right; box-sizing: border-box;">
+            <div style="display: flex; justify-content: space-between;"><span>Subtotal:</span><span>${currencySymbol}${subtotal.toFixed(2)}</span></div>
+            ${discount > 0 ? `<div style="display: flex; justify-content: space-between; color: #ef4444;"><span>Discount:</span><span>-${currencySymbol}${discount.toFixed(2)}</span></div>` : ''}
+            ${tax > 0 ? `<div style="display: flex; justify-content: space-between;"><span>Tax (5%):</span><span>+${currencySymbol}${tax.toFixed(2)}</span></div>` : ''}
+            <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px solid #cbd5e1; padding-top: 4px; margin-top: 2px;"><span>Total:</span><span>${currencySymbol}${total.toFixed(2)}</span></div>
+            <div style="display: flex; justify-content: space-between; color: #0d9488; font-weight: bold;"><span>Paid:</span><span>${currencySymbol}${paid.toFixed(2)}</span></div>
+            <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1.5px dashed #cbd5e1; padding-top: 4px; color: ${balance > 0 ? '#ef4444' : '#047857'};"><span>Balance:</span><span>${currencySymbol}${balance.toFixed(2)}</span></div>
+          </div>
+        `;
+      } else if (field.type === 'payment_history') {
+        const paymentLogs = payments.filter(p => p.InvoiceId === invoice.InvoiceId).sort((a, b) => b.PaymentId - a.PaymentId);
+        if (paymentLogs.length > 0) {
+          content = `
+            <div style="width: 100%; text-align: left; box-sizing: border-box;">
+              <div style="font-weight: bold; margin-bottom: 4px; font-size: 0.9em;">PAYMENT LOGS:</div>
+              ${paymentLogs.map(p => `
+                <div style="display: flex; justify-content: space-between; font-size: 0.9em; color: #475569; margin-top: 2px;">
+                  <span>${new Date(p.PaymentDate).toLocaleDateString()} (${p.PaymentMode})</span>
+                  <span>${currencySymbol}${p.Amount.toFixed(2)}</span>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }
+      }
+
+      const fontStyleFamily = field.fontFamily === 'monospace' ? 'monospace' : field.fontFamily === 'serif' ? 'Georgia, serif' : field.fontFamily === 'sans-serif' ? 'system-ui, sans-serif' : 'inherit';
+
+      return `
+        <div style="
+          position: absolute;
+          left: ${field.x}%;
+          top: ${field.y}%;
+          font-size: ${field.fontSize}px;
+          color: ${field.color};
+          font-family: ${fontStyleFamily};
+          font-weight: ${field.fontWeight};
+          font-style: ${field.fontStyle};
+          text-decoration: ${field.textDecoration};
+          text-align: ${field.textAlign};
+          width: ${field.width ? `${field.width}%` : 'auto'};
+          height: ${field.height ? `${field.height}px` : 'auto'};
+          box-sizing: border-box;
+        ">
+          ${content}
+        </div>
+      `;
+    };
+
+    const itemsList = invoiceItems.filter(item => item.InvoiceId === invoice.InvoiceId);
+    const tableHtml = `
+      <table style="width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 15px;">
+        <thead>
+          <tr style="border-bottom: 2px solid #cbd5e1; font-weight: bold;">
+            <th style="text-align: left; padding: 8px 4px;">Description</th>
+            <th style="text-align: right; padding: 8px 4px; width: 10%;">Qty</th>
+            <th style="text-align: right; padding: 8px 4px; width: 20%;">Rate</th>
+            <th style="text-align: right; padding: 8px 4px; width: 20%;">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsList.map(item => `
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px 4px;">${item.Description} (${item.ItemType})</td>
+              <td style="padding: 8px 4px; text-align: right;">${item.Quantity}</td>
+              <td style="padding: 8px 4px; text-align: right;">${currencySymbol}${item.Rate.toFixed(2)}</td>
+              <td style="padding: 8px 4px; text-align: right;">${currencySymbol}${item.Amount.toFixed(2)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+
+    const config = templateConfig;
+    const fontStyleFamily = config.fontFamily === 'monospace' ? 'monospace' : config.fontFamily === 'serif' ? 'Georgia, serif' : 'system-ui, sans-serif';
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Invoice Receipt ${invoice.InvoiceNumber}</title>
+        <style>
+          @media print {
+            body {
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .print-wrapper-table {
+              width: 100%;
+            }
+          }
+          body {
+            margin: 0;
+            padding: 40px;
+            background: #ffffff;
+            color: #1f2937;
+            font-family: ${fontStyleFamily};
+            font-size: 13px;
+            line-height: 1.5;
+            box-sizing: border-box;
+          }
+          .print-header {
+            position: relative;
+            height: 150px;
+            width: 100%;
+            border-bottom: 1px dashed #cbd5e1;
+            box-sizing: border-box;
+          }
+          .print-details-header {
+            position: relative;
+            height: 110px;
+            width: 100%;
+            margin-top: 12px;
+            box-sizing: border-box;
+          }
+          .print-details-footer {
+            position: relative;
+            height: 220px;
+            width: 100%;
+            margin-top: 12px;
+            box-sizing: border-box;
+          }
+          .print-footer {
+            position: relative;
+            height: 80px;
+            width: 100%;
+            border-top: 1px dashed #cbd5e1;
+            margin-top: 12px;
+            box-sizing: border-box;
+          }
+        </style>
+      </head>
+      <body>
+        <table class="print-wrapper-table">
+          <thead>
+            <tr>
+              <td>
+                <div class="print-header">
+                  ${headerFields.map(f => resolveFieldHtml(f)).join('')}
+                </div>
+              </td>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div class="print-details-header">
+                  ${detailsHeaderFields.map(f => resolveFieldHtml(f)).join('')}
+                </div>
+                
+                <div style="width: 100%; box-sizing: border-box; padding: 0 4px;">
+                  ${tableHtml}
+                </div>
+                
+                <div class="print-details-footer">
+                  ${detailsFooterFields.map(f => resolveFieldHtml(f)).join('')}
+                </div>
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td>
+                <div class="print-footer">
+                  ${footerFields.map(f => resolveFieldHtml(f)).join('')}
+                </div>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </body>
+      </html>
+    `;
+  };
+
+  const handlePrintReceipt = () => {
+    if (!selectedInvoice) return;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document || iframe.contentDocument;
+    if (!doc) return;
+
+    const htmlContent = generatePrintHtml(selectedInvoice);
+    doc.write(htmlContent);
+    doc.close();
+
+    iframe.contentWindow?.focus();
+    setTimeout(() => {
+      iframe.contentWindow?.print();
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 1000);
+    }, 500);
+  };
 
   return (
     <>
@@ -509,7 +1583,7 @@ export const BillingTab: React.FC<BillingTabProps> = ({
           </button>
 
           {/* Receipt Panel */}
-          <div style={{ 
+          <div id="printable-invoice-slip" style={{ 
             background: 'var(--bg-app)', 
             border: `1.5px solid ${templateConfig.primaryColor}`, 
             padding: '30px', 
@@ -519,161 +1593,7 @@ export const BillingTab: React.FC<BillingTabProps> = ({
             fontSize: '0.85rem',
             position: 'relative'
           }}>
-            
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
-              textAlign: 'center', 
-              borderBottom: '1.5px dashed var(--border-color)', 
-              paddingBottom: '16px', 
-              marginBottom: '16px',
-              gap: '8px'
-            }}>
-              {templateConfig.logoType !== 'none' && (
-                <img 
-                  src={templateConfig.logoType === 'preset' ? clinicLogo : templateConfig.customLogoUrl} 
-                  alt="Clinic Logo" 
-                  style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover' }}
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              )}
-              <div>
-                <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.5rem', marginBottom: '4px', color: templateConfig.primaryColor }}>{templateConfig.clinicName}</h3>
-                <p style={{ color: 'var(--text-secondary)' }}>{templateConfig.clinicAddress}</p>
-                <p style={{ color: 'var(--text-secondary)' }}>{templateConfig.clinicPhone}</p>
-                {templateConfig.headerNote && (
-                  <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic', marginTop: '4px', fontWeight: 600 }}>{templateConfig.headerNote}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="billing-summary-grid">
-              <div>
-                <strong>BILL TO:</strong>
-                <p>{getPatientName(selectedInvoice.PatientId)}</p>
-                <p>Date: {new Date(selectedInvoice.InvoiceDate).toLocaleDateString()}</p>
-                {templateConfig.showDoctorName && selectedInvoice.DoctorId && (
-                  <p style={{ marginTop: '4px' }}>Attending Dentist: <strong>{getDoctorName(selectedInvoice.DoctorId)}</strong></p>
-                )}
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <strong>INVOICE NO:</strong>
-                <p style={{ color: 'var(--accent-teal)', fontWeight: 600 }}>{selectedInvoice.InvoiceNumber}</p>
-                <p>Status: {selectedInvoice.Status.toUpperCase()}</p>
-              </div>
-            </div>
-
-            {/* Invoice Line Items */}
-            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                  <th style={{ padding: '8px 0', textAlign: 'left' }}>Description</th>
-                  <th style={{ padding: '8px 0', textAlign: 'right' }}>Qty</th>
-                  <th style={{ padding: '8px 0', textAlign: 'right' }}>Rate</th>
-                  <th style={{ padding: '8px 0', textAlign: 'right' }}>Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedInvoiceItems.map(item => (
-                  <tr key={item.InvoiceItemId} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                    <td style={{ padding: '8px 0' }}>{item.Description} ({item.ItemType})</td>
-                    <td style={{ padding: '8px 0', textAlign: 'right' }}>{item.Quantity}</td>
-                    <td style={{ padding: '8px 0', textAlign: 'right' }}>{currencySymbol}{item.Rate.toFixed(2)}</td>
-                    <td style={{ padding: '8px 0', textAlign: 'right' }}>{currencySymbol}{item.Amount.toFixed(2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {/* Calculations Breakdown */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px dashed var(--border-color)', paddingTop: '12px', width: '200px', marginLeft: 'auto', textAlign: 'right' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Subtotal:</span>
-                <span>{currencySymbol}{selectedInvoice.SubTotal.toFixed(2)}</span>
-              </div>
-              {selectedInvoice.Discount > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#f87171' }}>
-                  <span>Discount:</span>
-                  <span>-{currencySymbol}{selectedInvoice.Discount.toFixed(2)}</span>
-                </div>
-              )}
-              {selectedInvoice.TaxAmount > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Tax (5%):</span>
-                  <span>+{currencySymbol}{selectedInvoice.TaxAmount.toFixed(2)}</span>
-                </div>
-              )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '1.05rem', borderTop: '1px solid var(--border-color)', paddingTop: '6px' }}>
-                <span>Total Due:</span>
-                <span>{currencySymbol}{selectedInvoice.TotalAmount.toFixed(2)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--accent-teal)', fontWeight: 600 }}>
-                <span>Paid Amount:</span>
-                <span>{currencySymbol}{selectedInvoice.PaidAmount.toFixed(2)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, borderTop: '1.5px dashed var(--border-color)', paddingTop: '6px', color: (selectedInvoice.TotalAmount - selectedInvoice.PaidAmount) > 0 ? '#f87171' : 'var(--status-completed-text)' }}>
-                <span>Balance:</span>
-                <span>{currencySymbol}{(selectedInvoice.TotalAmount - selectedInvoice.PaidAmount).toFixed(2)}</span>
-              </div>
-            </div>
-
-            {/* Payment Audit Logs */}
-            {selectedInvoicePayments.length > 0 && (
-              <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
-                <strong>PAYMENT HISTORY LOGS:</strong>
-                {selectedInvoicePayments.map(p => (
-                  <div key={p.PaymentId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                    <span>{new Date(p.PaymentDate).toLocaleString()} via {p.PaymentMode}</span>
-                    <span>Amt: {currencySymbol}{p.Amount.toFixed(2)} (Ref: {p.TransactionReference || 'N/A'})</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Custom Picture Field / Attachment */}
-            {templateConfig.showCustomPicture && templateConfig.pictureType !== 'none' && (
-              <div style={{ 
-                marginTop: '20px', 
-                borderTop: '1px solid var(--border-color)', 
-                paddingTop: '16px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  {templateConfig.pictureType === 'xray' ? 'Clinical Case Attachment (Radiograph)' : templateConfig.pictureType === 'signature' ? 'Doctor Verification Stamp' : 'Invoice Image Attachment'}
-                </span>
-                <img 
-                  src={
-                    templateConfig.pictureType === 'xray' ? dentalXray : 
-                    templateConfig.pictureType === 'signature' ? doctorSign : 
-                    templateConfig.customPictureUrl
-                  } 
-                  alt="Invoice Attachment" 
-                  style={{ 
-                    maxWidth: '100%', 
-                    maxHeight: templateConfig.pictureType === 'signature' ? '80px' : '180px', 
-                    borderRadius: '6px', 
-                    border: '1px solid var(--border-color)',
-                    objectFit: 'contain'
-                  }}
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              </div>
-            )}
-
-            {templateConfig.footerTerms && (
-              <div style={{ textAlign: 'center', marginTop: '30px', color: 'var(--text-secondary)', fontSize: '0.75rem', fontStyle: 'italic', borderTop: '1px dashed var(--border-color)', paddingTop: '12px' }}>
-                {templateConfig.footerTerms}
-              </div>
-            )}
-
+            {renderInvoiceSlipLayout(selectedInvoice, false)}
           </div>
 
           {/* Quick Actions for Invoice */}
@@ -683,7 +1603,7 @@ export const BillingTab: React.FC<BillingTabProps> = ({
                 <Edit size={16} /> Edit Invoice
               </button>
             )}
-            <button className="btn btn-secondary" onClick={() => alert('Sending PDF to printer spool...')}>
+            <button className="btn btn-secondary" onClick={handlePrintReceipt}>
               <Printer size={16} /> Print Receipt
             </button>
             {selectedInvoice.TotalAmount > selectedInvoice.PaidAmount && (
@@ -1016,178 +1936,27 @@ export const BillingTab: React.FC<BillingTabProps> = ({
           <div 
             className="designer-modal-card"
             onClick={e => e.stopPropagation()}
+            style={{ minHeight: '80vh' }}
           >
             {/* Left Column: Form Controls */}
-            <div className="designer-modal-left">
+            <div className="designer-modal-left" onClick={() => setSelectedFieldId(null)}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
                 <div>
                   <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>Invoice Designer</h3>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Customize receipt branding, layout, and attachments</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Design layout with drag & drop and custom fields</span>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-teal)', textTransform: 'uppercase', margin: 0 }}>Clinic Branding Details</h4>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label className="label-text" style={{ fontSize: '0.75rem' }}>Clinic Name</label>
-                  <input 
-                    type="text" 
-                    className="input-field" 
-                    value={designerForm.clinicName}
-                    onChange={e => setDesignerForm(prev => ({ ...prev, clinicName: e.target.value }))}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label className="label-text" style={{ fontSize: '0.75rem' }}>Clinic Address</label>
-                  <input 
-                    type="text" 
-                    className="input-field" 
-                    value={designerForm.clinicAddress}
-                    onChange={e => setDesignerForm(prev => ({ ...prev, clinicAddress: e.target.value }))}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label className="label-text" style={{ fontSize: '0.75rem' }}>Clinic Phone / Contact</label>
-                  <input 
-                    type="text" 
-                    className="input-field" 
-                    value={designerForm.clinicPhone}
-                    onChange={e => setDesignerForm(prev => ({ ...prev, clinicPhone: e.target.value }))}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-teal)', textTransform: 'uppercase', margin: 0 }}>Logo Configuration</h4>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label className="label-text" style={{ fontSize: '0.75rem' }}>Logo Type</label>
-                  <select 
-                    className="input-field" 
-                    value={designerForm.logoType}
-                    onChange={e => setDesignerForm(prev => ({ ...prev, logoType: e.target.value as any }))}
-                  >
-                    <option value="none">No Logo</option>
-                    <option value="preset">Preset Dental Clinic Logo (Generated)</option>
-                    <option value="custom">Custom Image URL</option>
-                  </select>
-                </div>
-
-                {designerForm.logoType === 'custom' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label className="label-text" style={{ fontSize: '0.75rem' }}>Upload Logo Image</label>
-                      <input 
-                        type="file" 
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              setDesignerForm(prev => ({ ...prev, customLogoUrl: reader.result as string }));
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                        className="input-field"
-                        style={{ padding: '8px', background: 'rgba(0,0,0,0.2)', cursor: 'pointer' }}
-                      />
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label className="label-text" style={{ fontSize: '0.75rem' }}>Or Logo Image URL</label>
-                      <input 
-                        type="text" 
-                        className="input-field" 
-                        placeholder="https://example.com/logo.png"
-                        value={designerForm.customLogoUrl}
-                        onChange={e => setDesignerForm(prev => ({ ...prev, customLogoUrl: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-teal)', textTransform: 'uppercase', margin: 0 }}>Clinical / Stamp Picture Attachment</h4>
-                
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <input 
-                    type="checkbox" 
-                    id="showCustomPictureCheckbox"
-                    checked={designerForm.showCustomPicture}
-                    onChange={e => setDesignerForm(prev => ({ ...prev, showCustomPicture: e.target.checked }))}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  <label htmlFor="showCustomPictureCheckbox" style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>
-                    Show Picture Field on Invoice
-                  </label>
-                </div>
-
-                {designerForm.showCustomPicture && (
-                  <>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label className="label-text" style={{ fontSize: '0.75rem' }}>Attachment Picture Type</label>
-                      <select 
-                        className="input-field" 
-                        value={designerForm.pictureType}
-                        onChange={e => setDesignerForm(prev => ({ ...prev, pictureType: e.target.value as any }))}
-                      >
-                        <option value="none">No Picture</option>
-                        <option value="xray">Clinical X-Ray Preset (Generated)</option>
-                        <option value="signature">Doctor Signature Stamp Preset (Generated)</option>
-                        <option value="custom">Custom Image URL</option>
-                      </select>
-                    </div>
-
-                    {designerForm.pictureType === 'custom' && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label className="label-text" style={{ fontSize: '0.75rem' }}>Upload Custom Picture</label>
-                          <input 
-                            type="file" 
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  setDesignerForm(prev => ({ ...prev, customPictureUrl: reader.result as string }));
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }}
-                            className="input-field"
-                            style={{ padding: '8px', background: 'rgba(0,0,0,0.2)', cursor: 'pointer' }}
-                          />
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label className="label-text" style={{ fontSize: '0.75rem' }}>Or Picture Image URL</label>
-                          <input 
-                            type="text" 
-                            className="input-field" 
-                            placeholder="https://example.com/case-xray.png"
-                            value={designerForm.customPictureUrl}
-                            onChange={e => setDesignerForm(prev => ({ ...prev, customPictureUrl: e.target.value }))}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-teal)', textTransform: 'uppercase', margin: 0 }}>Aesthetics & Layout</h4>
+              {/* SECTION 1: GLOBAL STYLING */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-teal)', textTransform: 'uppercase', margin: 0 }}>Global Theme Styles</h4>
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
-                    <label className="label-text" style={{ fontSize: '0.75rem' }}>Font Style</label>
+                    <label className="label-text" style={{ fontSize: '0.7rem' }}>Default Font Style</label>
                     <select 
                       className="input-field" 
+                      style={{ padding: '6px 10px', fontSize: '0.8rem' }}
                       value={designerForm.fontFamily}
                       onChange={e => setDesignerForm(prev => ({ ...prev, fontFamily: e.target.value as any }))}
                     >
@@ -1198,8 +1967,8 @@ export const BillingTab: React.FC<BillingTabProps> = ({
                   </div>
 
                   <div>
-                    <label className="label-text" style={{ fontSize: '0.75rem' }}>Accent Highlight Color</label>
-                    <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+                    <label className="label-text" style={{ fontSize: '0.7rem' }}>Theme Color Accent</label>
+                    <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
                       {[
                         { name: 'Purple', hex: '#8b5cf6' },
                         { name: 'Teal', hex: '#14b8a6' },
@@ -1212,11 +1981,11 @@ export const BillingTab: React.FC<BillingTabProps> = ({
                           type="button"
                           onClick={() => setDesignerForm(prev => ({ ...prev, primaryColor: color.hex }))}
                           style={{
-                            width: '24px',
-                            height: '24px',
+                            width: '20px',
+                            height: '20px',
                             borderRadius: '50%',
                             backgroundColor: color.hex,
-                            border: designerForm.primaryColor === color.hex ? '2.5px solid #ffffff' : '1px solid rgba(0,0,0,0.3)',
+                            border: designerForm.primaryColor === color.hex ? '2px solid #ffffff' : '1px solid rgba(0,0,0,0.3)',
                             cursor: 'pointer',
                             transition: 'transform 0.1s'
                           }}
@@ -1226,50 +1995,521 @@ export const BillingTab: React.FC<BillingTabProps> = ({
                     </div>
                   </div>
                 </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                  <input 
-                    type="checkbox" 
-                    id="showDoctorCheckbox"
-                    checked={designerForm.showDoctorName}
-                    onChange={e => setDesignerForm(prev => ({ ...prev, showDoctorName: e.target.checked }))}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  <label htmlFor="showDoctorCheckbox" style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', cursor: 'pointer' }}>
-                    Show Attending Dentist Name
-                  </label>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label className="label-text" style={{ fontSize: '0.75rem' }}>Additional Header Subtitle / Note</label>
-                  <input 
-                    type="text" 
-                    className="input-field" 
-                    placeholder="e.g. Cosmetic & Implant Dentistry Center"
-                    value={designerForm.headerNote}
-                    onChange={e => setDesignerForm(prev => ({ ...prev, headerNote: e.target.value }))}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label className="label-text" style={{ fontSize: '0.75rem' }}>Invoice Terms / Footer Terms</label>
-                  <textarea 
-                    className="input-field" 
-                    rows={2}
-                    value={designerForm.footerTerms}
-                    onChange={e => setDesignerForm(prev => ({ ...prev, footerTerms: e.target.value }))}
-                    style={{ resize: 'none', height: 'auto', padding: '8px' }}
-                  />
-                </div>
               </div>
+
+              {/* SECTION 2: ADD ELEMENT */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-teal)', textTransform: 'uppercase', margin: 0 }}>Add Invoice Element</h4>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label className="label-text" style={{ fontSize: '0.7rem' }}>Element Type</label>
+                    <select 
+                      className="input-field" 
+                      style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+                      value={addFieldType}
+                      onChange={e => setAddFieldType(e.target.value as any)}
+                    >
+                      <option value="custom_text">Custom Text / Label</option>
+                      <option value="db_field">Database Field Value</option>
+                      <option value="picture">Picture Container</option>
+                      <option value="divider">Horizontal Divider Line</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="label-text" style={{ fontSize: '0.7rem' }}>Initial Placement</label>
+                    <select 
+                      className="input-field" 
+                      style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+                      value={addFieldSection}
+                      onChange={e => setAddFieldSection(e.target.value as any)}
+                    >
+                      <option value="header">Header (Top)</option>
+                      <option value="details_header">Details Top</option>
+                      <option value="details_footer">Details Bottom</option>
+                      <option value="footer">Footer (Bottom)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Sub-inputs depending on element type selected */}
+                {addFieldType === 'db_field' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label className="label-text" style={{ fontSize: '0.7rem' }}>Choose Database Field</label>
+                    <select
+                      className="input-field"
+                      style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+                      value={addFieldDbKey}
+                      onChange={e => setAddFieldDbKey(e.target.value)}
+                    >
+                      <optgroup label="Patient Fields">
+                        <option value="patient.FullName">Patient Full Name</option>
+                        <option value="patient.Mobile">Patient Mobile</option>
+                        <option value="patient.Email">Patient Email</option>
+                        <option value="patient.Address">Patient Address</option>
+                        <option value="patient.InsuranceProvider">Insurance Provider</option>
+                        <option value="patient.InsurancePolicyNumber">Insurance Policy No</option>
+                      </optgroup>
+                      <optgroup label="Doctor Fields">
+                        <option value="doctor.FullName">Attending Doctor Name</option>
+                        <option value="doctor.Specialization">Doctor Specialization</option>
+                        <option value="doctor.Qualification">Doctor Qualification</option>
+                      </optgroup>
+                      <optgroup label="Invoice Fields">
+                        <option value="invoice.InvoiceNumber">Invoice Number</option>
+                        <option value="invoice.InvoiceDate">Invoice Date</option>
+                        <option value="invoice.Status">Invoice Status</option>
+                        <option value="invoice.SubTotal">Invoice Subtotal</option>
+                        <option value="invoice.Discount">Invoice Discount</option>
+                        <option value="invoice.TaxAmount">Invoice Tax</option>
+                        <option value="invoice.TotalAmount">Invoice Total Due</option>
+                        <option value="invoice.PaidAmount">Invoice Paid Amount</option>
+                        <option value="invoice.BalanceDue">Outstanding Balance Due</option>
+                        <option value="invoice.Notes">Invoice Notes</option>
+                      </optgroup>
+                      <optgroup label="Consultation Fields">
+                        <option value="consultation.Diagnosis">Consultation Diagnosis</option>
+                        <option value="consultation.Symptoms">Consultation Symptoms</option>
+                        <option value="consultation.TreatmentAdvice">Treatment Advice</option>
+                        <option value="consultation.FollowUpDate">Follow-up Date</option>
+                      </optgroup>
+                    </select>
+                  </div>
+                )}
+
+                {addFieldType === 'custom_text' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label className="label-text" style={{ fontSize: '0.7rem' }}>Text Content</label>
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+                      value={addFieldText}
+                      onChange={e => setAddFieldText(e.target.value)}
+                      placeholder="e.g. Terms & Conditions"
+                    />
+                  </div>
+                )}
+
+                {addFieldType === 'picture' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '10px' }}>
+                      <div>
+                        <label className="label-text" style={{ fontSize: '0.7rem' }}>Image Source</label>
+                        <select
+                          className="input-field"
+                          style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+                          value={addFieldPicValue}
+                          onChange={e => setAddFieldPicValue(e.target.value)}
+                        >
+                          <option value="preset">Clinic Logo Preset</option>
+                          <option value="xray">X-Ray Attachment Preset</option>
+                          <option value="signature">Signature Stamp Preset</option>
+                          <option value="custom">Custom Image URL</option>
+                        </select>
+                      </div>
+                      {addFieldPicValue === 'custom' && (
+                        <div>
+                          <label className="label-text" style={{ fontSize: '0.7rem' }}>Upload Image File</label>
+                          <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setAddFieldPicUrl(reader.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="input-field"
+                            style={{ padding: '4px', fontSize: '0.75rem', background: 'rgba(0,0,0,0.2)', cursor: 'pointer' }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {addFieldPicValue === 'custom' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label className="label-text" style={{ fontSize: '0.7rem' }}>Or Image URL</label>
+                        <input 
+                          type="text" 
+                          className="input-field" 
+                          style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+                          placeholder="https://example.com/image.png"
+                          value={addFieldPicUrl}
+                          onChange={e => setAddFieldPicUrl(e.target.value)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <button 
+                  type="button" 
+                  className="btn btn-teal"
+                  style={{ width: '100%', padding: '8px', fontSize: '0.85rem' }}
+                  onClick={handleAddField}
+                >
+                  + Add Element to Template
+                </button>
+              </div>
+
+              {/* SECTION 3: ELEMENT PROPERTIES EDITING */}
+              {selectedFieldId ? (() => {
+                const fields = designerForm.customFields || DEFAULT_CUSTOM_FIELDS;
+                const field = fields.find(f => f.id === selectedFieldId);
+                if (!field) return null;
+
+                return (
+                  <div 
+                    onClick={e => e.stopPropagation()} 
+                    style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(139, 92, 246, 0.05)', padding: '12px', borderRadius: '8px', border: '1.5px solid var(--accent-purple)' }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h4 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-purple)', textTransform: 'uppercase', margin: 0 }}>Selected Element Properties</h4>
+                      <span style={{ fontSize: '0.65rem', background: 'var(--accent-purple)', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>{field.type.replace('_', ' ')}</span>
+                    </div>
+
+                    {/* Content editing if applicable */}
+                    {field.type === 'custom_text' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label className="label-text" style={{ fontSize: '0.7rem' }}>Text Content</label>
+                        <textarea 
+                          className="input-field"
+                          style={{ padding: '6px 10px', fontSize: '0.8rem', resize: 'none' }}
+                          rows={2}
+                          value={field.value}
+                          onChange={e => handleUpdateFieldProperty(field.id, 'value', e.target.value)}
+                        />
+                      </div>
+                    )}
+
+                    {field.type === 'db_field' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label className="label-text" style={{ fontSize: '0.7rem' }}>Database Field</label>
+                        <select
+                          className="input-field"
+                          style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+                          value={field.value}
+                          onChange={e => {
+                            handleUpdateFieldProperty(field.id, 'value', e.target.value);
+                            handleUpdateFieldProperty(field.id, 'label', `DB: ${e.target.value.split('.').pop()}`);
+                          }}
+                        >
+                          <optgroup label="Patient Fields">
+                            <option value="patient.FullName">Patient Full Name</option>
+                            <option value="patient.Mobile">Patient Mobile</option>
+                            <option value="patient.Email">Patient Email</option>
+                            <option value="patient.Address">Patient Address</option>
+                            <option value="patient.InsuranceProvider">Insurance Provider</option>
+                            <option value="patient.InsurancePolicyNumber">Insurance Policy No</option>
+                          </optgroup>
+                          <optgroup label="Doctor Fields">
+                            <option value="doctor.FullName">Attending Doctor Name</option>
+                            <option value="doctor.Specialization">Doctor Specialization</option>
+                            <option value="doctor.Qualification">Doctor Qualification</option>
+                          </optgroup>
+                          <optgroup label="Invoice Fields">
+                            <option value="invoice.InvoiceNumber">Invoice Number</option>
+                            <option value="invoice.InvoiceDate">Invoice Date</option>
+                            <option value="invoice.Status">Invoice Status</option>
+                            <option value="invoice.SubTotal">Invoice Subtotal</option>
+                            <option value="invoice.Discount">Invoice Discount</option>
+                            <option value="invoice.TaxAmount">Invoice Tax</option>
+                            <option value="invoice.TotalAmount">Invoice Total Due</option>
+                            <option value="invoice.PaidAmount">Invoice Paid Amount</option>
+                            <option value="invoice.BalanceDue">Outstanding Balance Due</option>
+                            <option value="invoice.Notes">Invoice Notes</option>
+                          </optgroup>
+                          <optgroup label="Consultation Fields">
+                            <option value="consultation.Diagnosis">Consultation Diagnosis</option>
+                            <option value="consultation.Symptoms">Consultation Symptoms</option>
+                            <option value="consultation.TreatmentAdvice">Treatment Advice</option>
+                            <option value="consultation.FollowUpDate">Follow-up Date</option>
+                          </optgroup>
+                        </select>
+                      </div>
+                    )}
+
+                    {field.type === 'picture' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '10px' }}>
+                          <div>
+                            <label className="label-text" style={{ fontSize: '0.7rem' }}>Image Source</label>
+                            <select
+                              className="input-field"
+                              style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+                              value={field.value === 'preset' || field.value === 'xray' || field.value === 'signature' ? field.value : 'custom'}
+                              onChange={e => {
+                                if (e.target.value === 'custom') {
+                                  handleUpdateFieldProperty(field.id, 'value', '');
+                                } else {
+                                  handleUpdateFieldProperty(field.id, 'value', e.target.value);
+                                }
+                              }}
+                            >
+                              <option value="preset">Clinic Logo Preset</option>
+                              <option value="xray">X-Ray Attachment Preset</option>
+                              <option value="signature">Signature Stamp Preset</option>
+                              <option value="custom">Custom Image URL</option>
+                            </select>
+                          </div>
+                          {field.value !== 'preset' && field.value !== 'xray' && field.value !== 'signature' && (
+                            <div>
+                              <label className="label-text" style={{ fontSize: '0.7rem' }}>Upload Image File</label>
+                              <input 
+                                type="file" 
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => {
+                                      handleUpdateFieldProperty(field.id, 'value', reader.result as string);
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                }}
+                                className="input-field"
+                                style={{ padding: '4px', fontSize: '0.75rem', background: 'rgba(0,0,0,0.2)', cursor: 'pointer' }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        {field.value !== 'preset' && field.value !== 'xray' && field.value !== 'signature' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <label className="label-text" style={{ fontSize: '0.7rem' }}>Or Image URL</label>
+                            <input 
+                              type="text" 
+                              className="input-field" 
+                              style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+                              placeholder="https://example.com/image.png"
+                              value={field.value}
+                              onChange={e => handleUpdateFieldProperty(field.id, 'value', e.target.value)}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Section Selector */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div>
+                        <label className="label-text" style={{ fontSize: '0.7rem' }}>Placement Zone</label>
+                        <select 
+                          className="input-field"
+                          style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+                          value={field.section}
+                          onChange={e => handleUpdateFieldProperty(field.id, 'section', e.target.value)}
+                        >
+                          <option value="header">Header (Top)</option>
+                          <option value="details_header">Details Top</option>
+                          <option value="details_footer">Details Bottom</option>
+                          <option value="footer">Footer (Bottom)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="label-text" style={{ fontSize: '0.7rem' }}>Font Family</label>
+                        <select
+                          className="input-field"
+                          style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+                          value={field.fontFamily}
+                          onChange={e => handleUpdateFieldProperty(field.id, 'fontFamily', e.target.value)}
+                        >
+                          <option value="inherit">Inherit Global Font</option>
+                          <option value="sans-serif">Sans-Serif</option>
+                          <option value="serif">Serif</option>
+                          <option value="monospace">Monospace</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Font sizes and Colors */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div>
+                        <label className="label-text" style={{ fontSize: '0.7rem' }}>Font Size</label>
+                        <select 
+                          className="input-field"
+                          style={{ padding: '6px 10px', fontSize: '0.8rem' }}
+                          value={field.fontSize}
+                          onChange={e => handleUpdateFieldProperty(field.id, 'fontSize', parseInt(e.target.value))}
+                        >
+                          {[8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 26, 28].map(size => (
+                            <option key={size} value={size}>{size}px</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="label-text" style={{ fontSize: '0.7rem' }}>Font Color</label>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <input 
+                            type="color" 
+                            style={{ border: 'none', background: 'transparent', width: '28px', height: '28px', cursor: 'pointer', padding: 0 }}
+                            value={field.color.startsWith('#') && field.color.length === 7 ? field.color : '#000000'}
+                            onChange={e => handleUpdateFieldProperty(field.id, 'color', e.target.value)}
+                          />
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{field.color}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Alignment & Decoration buttons */}
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button
+                          type="button"
+                          className="btn"
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: '0.75rem',
+                            fontWeight: field.fontWeight === 'bold' ? 'bold' : 'normal',
+                            background: field.fontWeight === 'bold' ? 'var(--accent-purple)' : 'var(--border-color)',
+                            color: '#ffffff'
+                          }}
+                          onClick={() => handleUpdateFieldProperty(field.id, 'fontWeight', field.fontWeight === 'bold' ? 'normal' : 'bold')}
+                        >
+                          B
+                        </button>
+                        <button
+                          type="button"
+                          className="btn"
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: '0.75rem',
+                            fontStyle: field.fontStyle === 'italic' ? 'italic' : 'normal',
+                            background: field.fontStyle === 'italic' ? 'var(--accent-purple)' : 'var(--border-color)',
+                            color: '#ffffff'
+                          }}
+                          onClick={() => handleUpdateFieldProperty(field.id, 'fontStyle', field.fontStyle === 'italic' ? 'normal' : 'italic')}
+                        >
+                          I
+                        </button>
+                        <button
+                          type="button"
+                          className="btn"
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: '0.75rem',
+                            textDecoration: field.textDecoration === 'underline' ? 'underline' : 'none',
+                            background: field.textDecoration === 'underline' ? 'var(--accent-purple)' : 'var(--border-color)',
+                            color: '#ffffff'
+                          }}
+                          onClick={() => handleUpdateFieldProperty(field.id, 'textDecoration', field.textDecoration === 'underline' ? 'none' : 'underline')}
+                        >
+                          U
+                        </button>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        {['left', 'center', 'right'].map(align => (
+                          <button
+                            key={align}
+                            type="button"
+                            className="btn"
+                            style={{
+                              padding: '4px 8px',
+                              fontSize: '0.7rem',
+                              background: field.textAlign === align ? 'var(--accent-teal)' : 'var(--border-color)',
+                              color: '#ffffff'
+                            }}
+                            onClick={() => handleUpdateFieldProperty(field.id, 'textAlign', align)}
+                          >
+                            {align.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Width / Height sliders */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                        <span>Element Width: {field.width || 100}%</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="5" 
+                        max="100" 
+                        value={field.width || 100}
+                        onChange={e => handleUpdateFieldProperty(field.id, 'width', parseInt(e.target.value))}
+                        style={{ cursor: 'pointer', height: '4px', background: 'var(--border-color)' }}
+                      />
+                    </div>
+
+                    {/* Height input for picture/divider */}
+                    {(field.type === 'picture' || field.type === 'divider') && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                          <span>Element Height: {field.height || 30}px</span>
+                        </div>
+                        <input 
+                          type="range" 
+                          min="2" 
+                          max="200" 
+                          value={field.height || 30}
+                          onChange={e => handleUpdateFieldProperty(field.id, 'height', parseInt(e.target.value))}
+                          style={{ cursor: 'pointer', height: '4px', background: 'var(--border-color)' }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Coordinates manual sliders */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Pos X: {field.x}%</span>
+                        <input 
+                          type="range" 
+                          min="0" 
+                          max="95" 
+                          value={field.x}
+                          onChange={e => handleUpdateFieldProperty(field.id, 'x', parseInt(e.target.value))}
+                          style={{ cursor: 'pointer', height: '4px', background: 'var(--border-color)' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Pos Y: {field.y}%</span>
+                        <input 
+                          type="range" 
+                          min="0" 
+                          max="95" 
+                          value={field.y}
+                          onChange={e => handleUpdateFieldProperty(field.id, 'y', parseInt(e.target.value))}
+                          style={{ cursor: 'pointer', height: '4px', background: 'var(--border-color)' }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Delete button */}
+                    {field.id !== 'clinic-logo' && field.id !== 'clinic-name' && field.id !== 'invoice-items-table' && field.id !== 'invoice-calculations' && (
+                      <button
+                        type="button"
+                        className="btn btn-danger"
+                        style={{ padding: '6px', fontSize: '0.8rem', marginTop: '4px' }}
+                        onClick={() => handleRemoveField(field.id)}
+                      >
+                        Delete Element
+                      </button>
+                    )}
+                  </div>
+                );
+              })() : (
+                <div style={{ border: '1px dashed var(--border-color)', borderRadius: '8px', padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                  Click on any invoice element in the live preview to customize its font style, size, alignment, and coloring.
+                </div>
+              )}
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '8px' }}>
                 <button 
                   type="button" 
                   className="btn btn-secondary" 
                   onClick={() => {
-                    setDesignerForm(DEFAULT_TEMPLATE_CONFIG);
+                    setDesignerForm({ ...DEFAULT_TEMPLATE_CONFIG, customFields: DEFAULT_CUSTOM_FIELDS });
                   }}
+                  style={{ padding: '8px 12px', fontSize: '0.8rem' }}
                 >
                   Restore Defaults
                 </button>
@@ -1277,13 +2517,14 @@ export const BillingTab: React.FC<BillingTabProps> = ({
                   type="button" 
                   className="btn btn-secondary" 
                   onClick={() => setIsDesignerOpen(false)}
+                  style={{ padding: '8px 12px', fontSize: '0.8rem' }}
                 >
                   Cancel
                 </button>
                 <button 
                   type="button" 
                   className="btn btn-primary"
-                  style={{ background: 'linear-gradient(135deg, var(--accent-purple), var(--accent-teal))', border: 'none', color: '#ffffff' }}
+                  style={{ background: 'linear-gradient(135deg, var(--accent-purple), var(--accent-teal))', border: 'none', color: '#ffffff', padding: '8px 16px', fontSize: '0.8rem' }}
                   onClick={async () => {
                     localStorage.setItem('invoiceTemplateConfig', JSON.stringify(designerForm));
                     setTemplateConfig(designerForm);
@@ -1309,140 +2550,26 @@ export const BillingTab: React.FC<BillingTabProps> = ({
             </div>
 
             {/* Right Column: Live Interactive Preview */}
-            <div className="designer-modal-right">
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Live Design Template Preview
+            <div className="designer-modal-right" onClick={() => setSelectedFieldId(null)}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Live Design Canvas
+                </span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--accent-purple)', fontWeight: 600 }}>
+                  * Drag and drop items inside zones *
+                </span>
               </div>
 
               <div 
                 className="designer-preview-scroll"
                 style={{ 
-                  border: `2px solid ${designerForm.primaryColor}`, 
-                  fontFamily: designerForm.fontFamily === 'monospace' ? 'monospace' : designerForm.fontFamily === 'serif' ? 'Georgia, serif' : 'system-ui, sans-serif'
+                  border: `2px solid ${designerForm.primaryColor}`,
+                  borderRadius: '12px',
+                  background: 'var(--bg-app)',
+                  padding: '20px'
                 }}
               >
-                {/* Header preview */}
-                <div style={{ 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  alignItems: 'center', 
-                  textAlign: 'center', 
-                  borderBottom: '1.5px dashed var(--border-color)', 
-                  paddingBottom: '12px', 
-                  marginBottom: '12px',
-                  gap: '6px'
-                }}>
-                  {designerForm.logoType !== 'none' && (
-                    <img 
-                      src={designerForm.logoType === 'preset' ? clinicLogo : designerForm.customLogoUrl} 
-                      alt="Logo" 
-                      style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }}
-                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                    />
-                  )}
-                  <div>
-                    <h3 style={{ fontFamily: 'var(--font-title)', fontSize: '1.3rem', marginBottom: '2px', color: designerForm.primaryColor }}>{designerForm.clinicName || 'Clinic Name'}</h3>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{designerForm.clinicAddress || 'Clinic Address'}</p>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{designerForm.clinicPhone || 'Clinic Phone'}</p>
-                    {designerForm.headerNote && (
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontStyle: 'italic', marginTop: '2px', fontWeight: 600 }}>{designerForm.headerNote}</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Summary Info */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '0.75rem' }}>
-                  <div>
-                    <strong>BILL TO:</strong>
-                    <p>John Doe (Patient)</p>
-                    {designerForm.showDoctorName && (
-                      <p style={{ marginTop: '2px' }}>Attending Dentist: <strong>Dr. Sarah Connor</strong></p>
-                    )}
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <strong>INVOICE NO:</strong>
-                    <p style={{ color: designerForm.primaryColor, fontWeight: 600 }}>INV-2026-0042</p>
-                    <p>Status: PAID</p>
-                  </div>
-                </div>
-
-                {/* Simulated Table */}
-                <table style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse', marginBottom: '12px' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border-color)', fontWeight: 600 }}>
-                      <th style={{ textAlign: 'left', paddingBottom: '4px' }}>Item</th>
-                      <th style={{ textAlign: 'right', paddingBottom: '4px' }}>Qty</th>
-                      <th style={{ textAlign: 'right', paddingBottom: '4px' }}>Rate</th>
-                      <th style={{ textAlign: 'right', paddingBottom: '4px' }}>Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
-                      <td style={{ paddingTop: '4px', paddingBottom: '4px' }}>Composite Resin Filling (Tooth #14)</td>
-                      <td style={{ textAlign: 'right' }}>1</td>
-                      <td style={{ textAlign: 'right' }}>{currencySymbol}120.00</td>
-                      <td style={{ textAlign: 'right' }}>{currencySymbol}120.00</td>
-                    </tr>
-                    <tr>
-                      <td style={{ paddingTop: '4px', paddingBottom: '4px' }}>Clinical Consultation & X-Ray</td>
-                      <td style={{ textAlign: 'right' }}>1</td>
-                      <td style={{ textAlign: 'right' }}>{currencySymbol}50.00</td>
-                      <td style={{ textAlign: 'right' }}>{currencySymbol}50.00</td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                {/* Calculations */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px dashed var(--border-color)', paddingTop: '8px', width: '160px', marginLeft: 'auto', textAlign: 'right', fontSize: '0.75rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Subtotal:</span>
-                    <span>{currencySymbol}170.00</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    <span>Total Due:</span>
-                    <span>{currencySymbol}170.00</span>
-                  </div>
-                </div>
-
-                {/* Picture Field attachment preview */}
-                {designerForm.showCustomPicture && designerForm.pictureType !== 'none' && (
-                  <div style={{ 
-                    marginTop: '12px', 
-                    borderTop: '1px solid var(--border-color)', 
-                    paddingTop: '12px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      {designerForm.pictureType === 'xray' ? 'Clinical Case Attachment (Radiograph)' : designerForm.pictureType === 'signature' ? 'Doctor Verification Stamp' : 'Invoice Image Attachment'}
-                    </span>
-                    <img 
-                      src={
-                        designerForm.pictureType === 'xray' ? dentalXray : 
-                        designerForm.pictureType === 'signature' ? doctorSign : 
-                        designerForm.customPictureUrl
-                      } 
-                      alt="Attachment Preview" 
-                      style={{ 
-                        maxWidth: '100%', 
-                        maxHeight: designerForm.pictureType === 'signature' ? '60px' : '120px', 
-                        borderRadius: '4px', 
-                        border: '1px solid var(--border-color)',
-                        objectFit: 'contain'
-                      }}
-                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                    />
-                  </div>
-                )}
-
-                {/* Footer preview */}
-                {designerForm.footerTerms && (
-                  <div style={{ textAlign: 'center', marginTop: '16px', color: 'var(--text-secondary)', fontSize: '0.7rem', fontStyle: 'italic', borderTop: '1px dashed var(--border-color)', paddingTop: '8px' }}>
-                    {designerForm.footerTerms}
-                  </div>
-                )}
+                {renderInvoiceSlipLayout(null, true)}
               </div>
             </div>
           </div>
